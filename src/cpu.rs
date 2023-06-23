@@ -150,11 +150,11 @@ impl CPU {
         self.run();
     }
 
+
     pub fn  load(&mut self, program: Vec<u8>) {
         self.memory[0x8000 .. (0x8000 + program.len())].copy_from_slice(&program[..]);
         self.mem_write_u16(0xFFFC, 0x8000);
     }
-
 
 
     pub fn reset(&mut self) {
@@ -165,29 +165,85 @@ impl CPU {
         self.program_counter = self.mem_read_u16(0xFFFC);
     }
 
+
+    fn ldy(&mut self,  mode: &AddressingMode) {
+        let addr =self.get_operand_address(mode);
+        let data = self.mem_read(addr);
+        self.register_y = data;
+        self.update_zero_and_negative_flags(self.register_y);
+
+    }
+
+
+    fn ldx(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let data = self.mem_read(addr);
+        self.register_x = data;
+        self.update_zero_and_negative_flags(self.register_x);
+    }
+
+
     fn lda(&mut self, mode: &AddressingMode) {
         let addr =self.get_operand_address(mode);
         let value = self.mem_read(addr);
 
-        self.register_a = value;
-        self.update_zero_and_negative_flags(self.register_a);
+        self.set_register_a(value);
+
 
     }
+
+
+    fn set_register_a(&mut self , value: u8) {
+        self.register_a = value;
+        self.update_zero_and_negative_flags(self.register_a);
+    }
+
+
+    fn and(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let data = self.mem_read(addr);
+        self.set_register_a(data & self.register_a);
+    }
+
+
+    fn eor(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let data = self.mem_read(addr);
+        self.set_register_a(data ^ self.register_a);
+    }
+
+
+    fn ora(&mut self, mode: &AddressingMode) {
+        let addr =self.get_operand_address(mode);
+        let data = self.mem_read(addr);
+
+        self.set_register_a(data | self.register_a);
+    }
+
 
     fn tax(&mut self) {
         self.register_x = self.register_a;
         self.update_zero_and_negative_flags(self.register_x);
     }
 
+
     fn inx(&mut self) {
         self.register_x = self.register_x.wrapping_add(1);
         self.update_zero_and_negative_flags(self.register_x);
     }
 
+
+    fn iny(&mut self) {
+        self.register_y = self.register_a.wrapping_add(1);
+        self.update_zero_and_negative_flags(self.register_y);
+    }
+
+
     fn sta(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         self.mem_write(addr, self.register_a);
     }
+
 
     fn update_zero_and_negative_flags(&mut self, result: u8) {
 
