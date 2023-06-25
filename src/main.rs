@@ -1,8 +1,10 @@
 pub mod cpu;
 pub mod opcodes;
+pub mod bus;
 
 use cpu::Mem;
 use cpu::CPU;
+use bus::Bus;
 use rand::Rng;
 use sdl2::event::Event;
 use sdl2::EventPump;
@@ -91,9 +93,11 @@ fn main() {
         0x60, 0xa6, 0xff, 0xea, 0xea, 0xca, 0xd0, 0xfb, 0x60,
     ];
 
-    let mut cpu = CPU::new();
+    let bus = Bus::new();
+    let mut cpu = CPU::new(bus);
     cpu.load(game_code);
     cpu.reset();
+    cpu.program_counter = 0x0600;
 
     let mut screen_state = [0 as u8; 32 * 3 * 32];
     let mut rng = rand::thread_rng();

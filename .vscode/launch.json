@@ -8,7 +8,7 @@
             "type": "cppdbg",
             "request": "launch",
             "name": "Rust - attach",
-            "program": "${fileDirname}/../target/debug/NES",
+            "program": "${fileDirname}/../target/debug/nes_launcher",
             "args": [],
             "cwd": "${workspaceRoot}",
             "sourceLanguages": [
