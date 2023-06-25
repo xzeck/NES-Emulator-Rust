@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
+
 use crate::opcodes;
 
 bitflags! {
+
     pub struct CpuFlags: u8 {
         const CARRY             = 0b00000001;
         const ZERO              = 0b00000010;

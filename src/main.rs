@@ -101,7 +101,7 @@ fn main() {
     cpu.run_with_callback(move |cpu| {
         handle_user_input(cpu, &mut event_pump);
 
-        cpu.mem_write(0xfe, rng.gen_range(1, 16));
+        cpu.mem_write(0xfe, rng.gen_range(1..16));
 
         if read_screen_state(cpu, &mut screen_state) {
             texture.update(None, &screen_state, 32 * 3).unwrap();
@@ -111,7 +111,7 @@ fn main() {
             canvas.present();
         }
 
-        ::std::thread::sleep(std::time::Duration::new(0, 70_000));
+        ::std::thread::sleep(Duration::new(0, 70_000));
     })
 
 }
@@ -128,6 +128,9 @@ fn handle_user_input(cpu: &mut CPU, event_pump: &mut EventPump) {
             Event::KeyDown { keycode: Some(Keycode::A), .. } => {
                 cpu.mem_write(0xff, 0x61);
             },
+            Event::KeyDown { keycode: Some(Keycode::S), ..} => {
+                cpu.mem_write(0xff, 0x73)
+            }
             Event::KeyDown { keycode: Some(Keycode::D), .. } => {
                 cpu.mem_write(0xff, 0x64);
             }
