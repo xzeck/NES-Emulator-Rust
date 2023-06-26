@@ -96,63 +96,67 @@ impl CPU {
         }
     }
 
-    fn get_operand_address(&self, mode: &AddressingMode) -> u16 {
+    pub fn get_absolute_address(&self, mode: &AddressingMode, addr: u16) -> u16 {
         match mode {
-            AddressingMode::Immediate => self.program_counter,
-            
-            AddressingMode::ZeroPage => self.mem_read(self.program_counter) as u16,
+            AddressingMode::ZeroPage => self.mem_read(addr) as u16,
 
-            AddressingMode::Absolute => self.mem_read_u16(self.program_counter),
+            AddressingMode::Absolute => self.mem_read_u16(addr),
 
             AddressingMode::ZeroPage_X => {
-                let pos = self.mem_read(self.program_counter);
+                let pos = self.mem_read(addr);
                 let addr = pos.wrapping_add(self.register_x) as u16;
                 addr
             }
 
             AddressingMode::ZeroPage_Y => {
-                let pos = self.mem_read(self.program_counter);
-                let addr = pos.wrapping_add(self.register_y) as u16;
+                let pos = self.mem_read(addr);
+                let addr = pos.wrapping_add(self.register_x) as u16;
+
                 addr
             }
 
             AddressingMode::Absolute_X => {
-                let base = self.mem_read_u16(self.program_counter);
+                let base = self.mem_read_u16(addr);
                 let addr = base.wrapping_add(self.register_x as u16);
                 addr
             }
 
             AddressingMode::Absolute_Y => {
-                let base = self.mem_read_u16(self.program_counter);
+                let base = self.mem_read_u16(addr);
                 let addr = base.wrapping_add(self.register_y as u16);
                 addr
             }
-
+            
             AddressingMode::Indirect_X => {
-                let base = self.mem_read(self.program_counter);
+                let base = self.mem_read(addr);
 
                 let ptr: u8 = (base as u8).wrapping_add(self.register_x);
                 let lo = self.mem_read(ptr as u16);
                 let hi = self.mem_read(ptr.wrapping_add(1) as u16);
-
-                (hi as u16) << 8 | (lo as u16) 
+                (hi as u16) << 8 | (lo as u16)
             }
 
             AddressingMode::Indirect_Y => {
-                let base = self.mem_read(self.program_counter);
+
+            let base = self.mem_read(addr);
 
                 let lo = self.mem_read(base as u16);
-                let hi = self.mem_read((base as u8).wrapping_add(1) as u16);
-
+                let hi = self.mem_read((base as u8).wrapping_add(16) as u16);
                 let deref_base = (hi as u16) << 8 | (lo as u16);
                 let deref = deref_base.wrapping_add(self.register_y as u16);
-
                 deref
             }
 
-            AddressingMode::NoneAddressing => {
-                panic!("mode {:?}  is not supported", mode);
+            _=> {
+                panic!("mode {:?} is not supported", mode);
             }
+
+        }
+    }
+    fn get_operand_address(&self, mode: &AddressingMode) -> u16 {
+        match mode {
+            AddressingMode::Immediate => self.program_counter,
+            _ =>self.get_absolute_address(mode, self.program_counter)
         }
     }
 
@@ -621,15 +625,17 @@ impl CPU {
         {
 
             let ref opcodes: HashMap<u8, &'static opcodes::OpCode> = *opcodes::OPCODES_MAP;
-
+            
             loop {
+                
+                callback(self);
+                
                 let code = self.mem_read(self.program_counter);
                 self.program_counter += 1;
                 let program_counter_state = self.program_counter;
                 
                 let ref opcode = opcodes.get(&code).unwrap();
                 
-
                 match code {
                     
                     0xA9 | 0xa5 | 0xb5 | 0xad | 0xbd | 0xb9 | 0xa1 | 0xb1 => {
@@ -867,7 +873,7 @@ impl CPU {
                     }
 
                     // STX
-                    0x86 | 0x96 | 0x83 => {
+                    0x86 | 0x96 | 0x8e => {
                         let addr = self.get_operand_address(&opcode.mode);
                         self.mem_write(addr, self.register_y);
                     }
@@ -916,6 +922,8 @@ impl CPU {
                         self.update_zero_and_negative_flags(self.register_a)
                     }
 
+                    
+
                     _ => todo!()
                     
                 }
@@ -923,7 +931,6 @@ impl CPU {
                     self.program_counter += (opcode.len - 1) as u16;
                 }
 
-                callback(self);
             }
         }
 }
@@ -932,10 +939,11 @@ impl CPU {
 #[cfg(test)]
 mod test {
     use super::*;
-    
+    use crate::cartridge::test;
+
     #[test]
     fn test_0xa9_lda_immediate_load_data() {
-        let bus = Bus::new();
+        let bus = Bus::new(test::test_rom());
         let mut cpu = CPU::new(bus);
         cpu.load_and_run(vec![0xa9, 0x05, 0x00]);
         assert_eq!(cpu.register_a, 5);
@@ -945,7 +953,7 @@ mod test {
 
     #[test]
     fn test_0xaa_tax_move_a_to_x() {
-        let bus = Bus::new();
+        let bus = Bus::new(test::test_rom());
         let mut cpu = CPU::new(bus);
         cpu.register_a = 10;
         cpu.load_and_run(vec![0xaa, 0x00]);
@@ -955,7 +963,7 @@ mod test {
 
     #[test]
     fn test_5_ops_working_together() {
-        let bus = Bus::new();
+        let bus = Bus::new(test::test_rom());
         let mut cpu = CPU::new(bus);
         cpu.load_and_run(vec![0xa9, 0xc0, 0xaa, 0xe8, 0x00]);
 
@@ -964,7 +972,7 @@ mod test {
 
     #[test]
     fn test_inx_overflow() {
-        let bus = Bus::new();
+        let bus = Bus::new(test::test_rom());
         let mut cpu = CPU::new(bus);
         cpu.register_x = 0xff;
         cpu.load_and_run(vec![0xe8, 0xe8, 0x00]);
@@ -974,7 +982,7 @@ mod test {
 
     #[test]
     fn test_lda_from_memory() {
-        let bus = Bus::new();
+        let bus = Bus::new(test::test_rom());
         let mut cpu = CPU::new(bus);
         cpu.mem_write(0x10, 0x55);
 
@@ -982,5 +990,4 @@ mod test {
 
         assert_eq!(cpu.register_a, 0x55);
     }
-
 }
