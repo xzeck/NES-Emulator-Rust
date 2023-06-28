@@ -69,7 +69,7 @@ impl Rom {
         let ines_ver = (raw[7] >> 2) & 0b11;
 
         if ines_ver != 0 {
-            return Err("NES@.0 format is not supported".to_string());
+            return Err("NES2.0 format is not supported".to_string());
         }
 
         let four_screen = raw[6] & 0b1000 != 0;

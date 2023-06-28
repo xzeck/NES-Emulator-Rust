@@ -585,6 +585,10 @@ impl CPU {
         self.set_register_a(data ^ self.register_a);
     }
 
+    fn sub_from_register_a(&mut self, data: u8) {
+        self.add_to_register_a(((data as i8).wrapping_neg().wrapping_sub(1)) as u8);
+    }
+
     
     fn adc(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
@@ -974,7 +978,126 @@ impl CPU {
                         let data = self.lsr(&opcode.mode);
                         self.xor_with_register_a(data);
                     }
+                    
+                    // AXS
+                    0xCB => {
+                        let addr = self.get_operand_address(&opcode.mode);
+                        let data = self.mem_read(addr);
+                        let x_and_a = self.register_x & self.register_a;
+                        let result = x_and_a.wrapping_sub(data);
 
+                        if data <= x_and_a {
+                            self.status.insert(CpuFlags::CARRY);
+                        }
+
+                        self.update_zero_and_negative_flags(result);
+                    }
+                    
+                    // ARR
+                    0x6B => {
+                        let addr = self.get_operand_address(&opcode.mode);
+                        let data = self.mem_read(addr);
+                        self.and_with_register_a(data);
+                        self.ror_accumulator();
+
+                        let result = self.register_a;
+                        let bit_5 = (result >> 5) & 1;
+                        let bit_6 = (result >> 6) & 1;
+
+                        if bit_6 == 1{ 
+                            self.status.insert(CpuFlags::CARRY)
+                        } else {
+                            self.status.remove(CpuFlags::CARRY);
+                        }
+
+                        if bit_5 ^ bit_6 == 1 {
+                            self.status.insert(CpuFlags::OVERFLOW);
+                        } else {
+                            self.status.remove(CpuFlags::OVERFLOW);
+                        }
+
+                        self.update_zero_and_negative_flags(result);
+                    }
+
+                    // SBC - unofficial
+                    0xeb => {
+                        let addr = self.get_operand_address(&opcode.mode);
+                        let data = self.mem_read(addr);
+                        self.sub_from_register_a(data);
+                    }
+                    // ANC
+                    0x0b | 0x2b => {
+                        let addr = self.get_operand_address(&opcode.mode);
+                        let data = self.mem_read(addr);
+                        self.and_with_register_a(data);
+
+                        if self.status.contains(CpuFlags::NEGATIV) {
+                            self.status.insert(CpuFlags::CARRY);
+                        } else {
+                            self.status.remove(CpuFlags::CARRY);
+                        }
+                    }
+
+                    // ALR
+                    0x4b => {
+                        let addr = self.get_operand_address(&opcode.mode);
+                        let data = self.mem_read(addr);
+                        self.and_with_register_a(data);
+                        self.lsr_accumulator();
+                    }
+
+                    // NOP read
+                    0x04 | 0x44 | 0x64 | 0x14 | 0x34 | 0x54 | 0x74 | 0xd4 | 0xf4 | 0x0c | 0x1c | 0x3c | 0x5c | 0x7c | 0xdc | 0xfc => {
+                        let addr = self.get_operand_address(&opcode.mode);
+                        let data = self.mem_read(addr);
+                    }
+
+                    // RRA
+                    0x67 | 0x77 | 0x6f | 0x7f | 0x7b | 0x63 | 0x73 => {
+                        let data = self.ror(&opcode.mode);
+                        self.add_to_register_a(data);
+                    }
+
+                    // ISB
+                    0xe7 | 0xf7 | 0xef | 0xff | 0xfb | 0xe3 | 0xf3 => {
+                        let data = self.inc(&opcode.mode);
+                        self.sub_from_register_a(data);
+                    }
+
+                    // NOPs
+                    0x02 | 0x12 | 0x22 | 0x32 | 0x42 | 0x52 | 0x62 | 0x72 | 0x92 | 0xb2 | 0xd2 | 0xf2 => {
+                        // do nothing
+                    }
+
+                    // LAX
+                    0xa7 | 0xb7 | 0xaf | 0xbf | 0xa3 | 0xb3 => {
+                        let addr = self.get_operand_address(&opcode.mode);
+                        let data = self.mem_read(addr);
+                        self.set_register_a(data);
+                        self.register_x = self.register_a;
+                    }
+
+                    // SAX
+                    0x87 | 0x97 | 0x8f | 0x83 => {
+                        let data = self.register_a & self.register_x;
+                        let addr =self.get_operand_address(&opcode.mode);
+                        self.mem_write(addr, data);
+                    }
+
+                    // LXA
+                    0xab => {
+                        self.lda(&opcode.mode);
+                        self.tax();
+                    }
+
+                    // XAA
+                    0x8b => {
+                        self.register_a = self.register_x;
+                        self.update_zero_and_negative_flags(self.register_a);
+                        let addr = self.get_operand_address(&opcode.mode);
+                        let data = self.mem_read(addr);
+                        self.and_with_register_a(data);
+                    }
                     _ => todo!()
                     
                 }
