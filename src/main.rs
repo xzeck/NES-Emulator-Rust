@@ -74,7 +74,7 @@ fn main() {
     let creator = canvas.texture_creator();
     let mut texture = creator.create_texture_target(PixelFormatEnum::RGB24, 32, 32).unwrap();
 
-    let bytes: Vec<u8>  = std::fs::read("test_roms/Contra.nes").unwrap();
+    let bytes: Vec<u8>  = std::fs::read("test_roms/nestest.nes").unwrap();
     let rom = Rom::new(&bytes).unwrap();
 
     let bus = Bus::new(rom);
