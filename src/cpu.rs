@@ -573,6 +573,18 @@ impl CPU {
 
     }
 
+    fn and_with_register_a(&mut self, data: u8) {
+        self.set_register_a(data & self.register_a);
+    }
+
+    fn or_with_register_a(&mut self, data: u8) {
+        self.set_register_a(data | self.register_a);
+    }
+
+    fn xor_with_register_a(&mut self, data: u8) {
+        self.set_register_a(data ^ self.register_a);
+    }
+
     
     fn adc(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
@@ -922,7 +934,46 @@ impl CPU {
                         self.update_zero_and_negative_flags(self.register_a)
                     }
 
-                    
+                    // unofficial
+
+                    // DCP
+                    0xc7 | 0xd7 |  0xCF | 0xdF | 0xdb | 0xd3  | 0xc3 => {
+
+                        let addr = self.get_operand_address(&opcode.mode);
+                        let mut data = self.mem_read(addr);
+
+                        data = data.wrapping_sub(1);
+                        self.mem_write(addr, data);
+
+                        if data <= self.register_a {
+                            self.status.insert(CpuFlags::CARRY);
+                        }
+
+                        self.update_zero_and_negative_flags(self.register_a.wrapping_sub(data));
+                    }
+
+                    // RLA
+                    0x27 | 0x37 | 0x2F | 0x3F | 0x3b | 0x33 | 0x23 => {
+                        let data = self.rol(&opcode.mode);
+                        self.and_with_register_a(data);
+                    }
+
+                    // SLO
+                    0x07 | 0x17 | 0x0F | 0x1F | 0x1b | 0x03 | 0x13 => {
+                        let data = self.asl(&opcode.mode);
+                        self.or_with_register_a(data);
+                    }
+
+                    // SKB
+                    0x80 | 0x82 | 0x89 | 0xc2 | 0xe2 => {
+                        // will add
+                    }
+
+                    // SRE
+                    0x47 | 0x57 | 0x4F | 0x5F | 0x5b | 0x43 | 0x53 => {
+                        let data = self.lsr(&opcode.mode);
+                        self.xor_with_register_a(data);
+                    }
 
                     _ => todo!()
                     
