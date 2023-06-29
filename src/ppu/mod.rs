@@ -20,6 +20,9 @@ pub struct NesPPU {
     internal_data_buf: u8,
     pub oam_addr: u8,
     pub status: StatusRegister,
+    scanline: u16, 
+    cycles: usize,
+    pub nmi_interrupt: Option<u8>,
 }
 
 
@@ -58,10 +61,34 @@ impl NesPPU {
             scroll: ScrollRegister::new(),
             internal_data_buf: 0,
             oam_addr: 0,
+            scanline: 0,
+            cycles: 0,
+            nmi_interrupt: None,
 
         }
     }
+    pub fn tick(&mut self, cycles: u8) -> bool {
+        self.cycles += cycles as usize;
 
+        if self.cycles >= 341 {
+            self.cycles = self.cycles - 341;
+            self.scanline += 1;
+            if self.scanline == 241 {
+                if self.ctrl.generate_vblank_nmi() {
+                    self.status.set_vblank_status(true);
+                    todo!("Should trigger NMI interrupt")
+                }
+            }
+
+            if self.scanline >= 262 {
+                self.scanline = 0;
+                self.status.reset_vblank_status();
+                return true;
+            }
+        }
+
+        return false;
+    }
     fn write_to_ppu_addr(&mut self, value: u8) {
         self.addr.update(value);
     }
@@ -89,28 +116,10 @@ impl NesPPU {
         }
     }
 
-    pub fn read_data(&mut self) -> u8 {
-        let addr = self.addr.get();
-        self.increment_vram_addr();
-
-        match addr {
-            0..=0x1fff => {
-                let result = self.internal_data_buf;
-                self.internal_data_buf = self.chr_rom[addr as usize];
-                result
-            }
-            0x2000..=0x2fff => {
-                let result = self.internal_data_buf;
-                self.internal_data_buf = self.vram[self.mirror_vram_addr(addr) as usize];
-                result
-            },
-            0x3000..=0x3eff => panic!("Address space is not expected to be used"),
-            0x3f00..=0x3fff => {
-                self.palette_table[(addr - 0x3f00) as usize]
-            }
-            _ => panic!("unexpected access to mirorred space {}", addr),
-        }
+    fn poll_nmi_status(&mut self) -> Option<u8> {
+        self.nmi_interrupt.take()
     }
+    
 }
 
 impl PPU for NesPPU {
@@ -118,6 +127,10 @@ impl PPU for NesPPU {
     fn write_to_ctrl(&mut self, value: u8) {
         let before_nmi_status = self.ctrl.generate_vblank_nmi();
         self.ctrl.update(value);
+
+        if !before_nmi_status && self.ctrl.generate_vblank_nmi() && self.status.is_in_vblank() {
+            self.nmi_interrupt = Some(1);
+        }
     }
 
     fn write_to_mask(&mut self, value: u8) {
@@ -135,7 +148,7 @@ impl PPU for NesPPU {
     fn read_oam_data(&mut self) -> u8 {
         self.oam_data[self.oam_addr as usize]
     }
-    
+
     fn write_to_oam_addr(&mut self, value: u8) {
         self.oam_addr = value;
     }
