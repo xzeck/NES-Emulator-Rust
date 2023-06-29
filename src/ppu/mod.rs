@@ -1,6 +1,7 @@
 use crate::cartridge::Mirroring;
 use registers::addr::AddrRegister;
 use registers::control::ControlRegister;
+use registers::status::StatusRegister;
 
 pub mod registers;
 
@@ -14,6 +15,7 @@ pub struct NesPPU {
     pub ctrl: ControlRegister,
     internal_data_buf: u8,
     pub oam_addr: u8,
+    pub status: StatusRegister,
 }
 
 
@@ -28,7 +30,7 @@ pub trait PPU {
     fn write_to_ppu_addr(&mut self, value: u8);
     fn write_to_data(&mut self, value: u8);
     fn read_data(&mut self) -> u8;
-    fn write_oam_data(&mut self, value: &[u8; 256]);
+    fn write_oam_dma(&mut self, value: &[u8; 256]);
 
 }
 impl NesPPU {
@@ -41,8 +43,10 @@ impl NesPPU {
             palette_table: [0; 32],
             addr: AddrRegister::new(),
             ctrl: ControlRegister::new(),
+            status: StatusRegister::new(),
             internal_data_buf: 0,
             oam_addr: 0,
+
         }
     }
 
@@ -94,4 +98,34 @@ impl NesPPU {
             _ => panic!("unexpected access to mirorred space {}", addr),
         }
     }
+}
+
+impl PPU for NesPPU {
+    fn write_to_ctrl(&mut self, value: u8) {
+        let before_nmi_status = self.ctrl.generate_vblank_nmi();
+        self.ctrl.update(value);
+    }
+
+    fn write_to_mask(&mut self, value: u8) {
+        self.mask.update(value);
+    }
+
+    fn read_status(&mut self) -> u8 {
+        let data = self.status.snapshot();
+        self.status.reset_vblank_status();
+        self.addr.reset_latch();
+        self.scroll.reset_latch();
+        data
+    }
+
+    fn write_to_oam_addr(&mut self, value: u8) {
+        self.oam_addr = value;
+    }
+
+    fn write_to_data(&mut self, value: u8) {
+        self.oam_data[self.oam_addr as usize] = value;
+        self.oam_addr = self.oam_addr.wrapping_add(1);
+    }
+
+    
 }
