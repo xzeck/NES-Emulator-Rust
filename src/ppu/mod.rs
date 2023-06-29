@@ -2,6 +2,7 @@ use crate::cartridge::Mirroring;
 use registers::addr::AddrRegister;
 use registers::control::ControlRegister;
 use registers::status::StatusRegister;
+use registers::mask::MaskRegister;
 
 pub mod registers;
 
@@ -13,6 +14,7 @@ pub struct NesPPU {
     pub addr: AddrRegister,
     pub mirroring: Mirroring,
     pub ctrl: ControlRegister,
+    pub mask: MaskRegister,
     internal_data_buf: u8,
     pub oam_addr: u8,
     pub status: StatusRegister,
@@ -44,6 +46,7 @@ impl NesPPU {
             addr: AddrRegister::new(),
             ctrl: ControlRegister::new(),
             status: StatusRegister::new(),
+            mask: MaskRegister::new(),
             internal_data_buf: 0,
             oam_addr: 0,
 
@@ -101,6 +104,7 @@ impl NesPPU {
 }
 
 impl PPU for NesPPU {
+
     fn write_to_ctrl(&mut self, value: u8) {
         let before_nmi_status = self.ctrl.generate_vblank_nmi();
         self.ctrl.update(value);
