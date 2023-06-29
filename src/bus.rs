@@ -1,10 +1,11 @@
 use crate::Mem;
 use crate::cartridge::Rom;
 use crate::ppu::NesPPU;
+use crate::ppu::PPU;
 
 pub struct Bus {
     cpu_vram: [u8; 2048],
-    prg_rom: Rom,
+    prg_rom: Vec<u8>,
     ppu: NesPPU
 }
 
@@ -14,7 +15,7 @@ impl Bus {
 
         Bus {
             cpu_vram: [0; 2048],
-            prg_rom: rom,
+            prg_rom: rom.prg_rom,
             ppu: ppu,
         }
     }
@@ -22,12 +23,12 @@ impl Bus {
     fn read_prg_rom(&self, mut addr: u16) -> u8 {
         addr -= 0x8000;
 
-        if self.prg_rom.prg_rom.len() == 0x4000 && addr >= 0x4000 {
+        if self.prg_rom.len() == 0x4000 && addr >= 0x4000 {
             // mirror
             addr = addr % 0x4000;
         }
 
-        self.prg_rom.prg_rom[addr as usize]
+        self.prg_rom[addr as usize]
     }
 }
 
