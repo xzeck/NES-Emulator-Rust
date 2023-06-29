@@ -89,14 +89,6 @@ impl NesPPU {
 
         return false;
     }
-    fn write_to_ppu_addr(&mut self, value: u8) {
-        self.addr.update(value);
-    }
-
-    fn write_to_ctrl(&mut self, value: u8) {
-        let before_nmi_staus = self.ctrl.generate_vblank_nmi();
-        self.ctrl.update(value);
-    }
 
     fn increment_vram_addr(&mut self) {
         self.addr.increment(self.ctrl.vram_addr_increment());
