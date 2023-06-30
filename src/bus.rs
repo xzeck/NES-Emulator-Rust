@@ -7,7 +7,6 @@ pub struct Bus {
     cpu_vram: [u8; 2048],
     prg_rom: Vec<u8>,
     ppu: NesPPU,
-
     cycles: usize,
 }
 
