@@ -73,15 +73,21 @@ impl NesPPU {
         if self.cycles >= 341 {
             self.cycles = self.cycles - 341;
             self.scanline += 1;
+
+
             if self.scanline == 241 {
+                self.status.set_vblank_status(true);
+                self.status.set_sprite_zero_hit(false);
+
                 if self.ctrl.generate_vblank_nmi() {
-                    self.status.set_vblank_status(true);
-                    todo!("Should trigger NMI interrupt")
+                    self.nmi_interrupt = Some(1);
                 }
             }
 
             if self.scanline >= 262 {
                 self.scanline = 0;
+                self.nmi_interrupt = None;
+                self.status.set_sprite_zero_hit(false);
                 self.status.reset_vblank_status();
                 return true;
             }
@@ -108,7 +114,7 @@ impl NesPPU {
         }
     }
 
-    fn poll_nmi_status(&mut self) -> Option<u8> {
+    pub fn poll_nmi_interrupt(&mut self) -> Option<u8> {
         self.nmi_interrupt.take()
     }
     
@@ -179,6 +185,8 @@ impl PPU for NesPPU {
 
             _ => panic!("unexpected access to mirrored space {}", addr), 
         }
+        
+        self.increment_vram_addr();
     }
 
     fn read_data(&mut self) -> u8 {

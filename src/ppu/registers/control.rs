@@ -34,7 +34,7 @@ impl ControlRegister {
         }
     }
 
-    pub fn spr_pattern_addr(&self) -> u16 {
+    pub fn sprt_pattern_addr(&self) -> u16 {
         if !self.contains(ControlRegister::SPRITE_PATTERN_ADDR) {
             0
         } else {
