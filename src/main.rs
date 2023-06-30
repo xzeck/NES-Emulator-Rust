@@ -5,6 +5,7 @@ pub mod opcodes;
 pub mod trace;
 pub mod ppu;
 pub mod render;
+pub mod joypad;
 
 use bus::Bus;
 use cartridge::Rom;
@@ -21,6 +22,9 @@ use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::EventPump;
+
+use std::collections::HashMap;
+
 // use std::time::Duration;
 
 #[macro_use]
@@ -123,8 +127,18 @@ fn main() {
 
     let mut frame = Frame::new();
 
+    let mut key_map = HashMap::new();
+    key_map.insert(Keycode::Down, joypad::JoypadButton::DOWN);
+    key_map.insert(Keycode::Up, joypad::JoypadButton::UP);
+    key_map.insert(Keycode::Right, joypad::JoypadButton::RIGHT);
+    key_map.insert(Keycode::Left, joypad::JoypadButton::LEFT);
+    key_map.insert(Keycode::Space, joypad::JoypadButton::SELECT);
+    key_map.insert(Keycode::Return, joypad::JoypadButton::START);
+    key_map.insert(Keycode::A, joypad::JoypadButton::BUTTON_A);
+    key_map.insert(Keycode::S, joypad::JoypadButton::BUTTON_B);
+
     // run the game cycle
-    let bus = Bus::new(rom, move |ppu: &NesPPU| {
+    let bus = Bus::new(rom, move |ppu: &NesPPU, joypad: &mut joypad::Joypad| {
         render::render(ppu, &mut frame);
         texture.update(None, &frame.data, 256 * 3).unwrap();
 
@@ -138,6 +152,18 @@ fn main() {
                   keycode: Some(Keycode::Escape),
                   ..
               } => std::process::exit(0),
+
+              Event::KeyDown {keycode, .. } => {
+                if let Some(key) = key_map.get(&keycode.unwrap_or(Keycode::Ampersand)){
+                    joypad.set_button_pressed_status(*key, true);
+                }
+              }
+
+              Event::KeyUp { keycode, .. } => {
+                if let Some(key) = key_map.get(&keycode.unwrap_or(Keycode::Ampersand)){
+                    joypad.set_button_pressed_status(*key, false);
+                }
+              }
               _ => { /* do nothing */ }
             }
          }
