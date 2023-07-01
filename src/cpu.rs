@@ -91,6 +91,7 @@ mod interrupt {
     #[derive(PartialEq, Eq)]
     pub enum InterruptType {
         NMI,
+        BRK
     }
 
     #[derive(PartialEq, Eq)]
@@ -106,6 +107,13 @@ mod interrupt {
         vector_addr: 0xfffA,
         b_flag_mask: 0b00100000,
         cpu_cycles: 2,
+    };
+
+    pub(super) const BRK: Interrupt = Interrupt {
+        itype: InterruptType::BRK,
+        vector_addr: 0xfffe,
+        b_flag_mask: 0b00110000,
+        cpu_cycles: 1,
     };
 }
 
@@ -659,7 +667,7 @@ impl<'a> CPU<'a> {
 
         loop {
             if let Some(_nmi) = self.bus.poll_nmi_status() {
-                self.interrupt_nmi();
+                self.interrupt(interrupt::NMI);
             }
             callback(self);
             let code = self.mem_read(self.program_counter);

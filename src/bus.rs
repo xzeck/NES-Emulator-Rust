@@ -48,10 +48,15 @@ impl<'a> Bus<'a> {
 
     pub fn tick(&mut self, cycles: u8) {
         self.cycles += cycles as usize;
-        let new_frame = self.ppu.tick(cycles * 3);
-        if new_frame {
-            (self.gameloop_callback)(&self.ppu, &mut self.joypad1);
+
+        let nmi_before = self.ppu.nmi_interrupt.is_some();
+        self.ppu.tick(cycles * 3);
+        let nmi_after = self.ppu.nmi_interrupt.is_some();
+
+        if !nmi_before && nmi_after {
+            (self.gameloop_callback)(&self.ppu, &mut self.joypad1)
         }
+
     }
 
     pub fn poll_nmi_status(&mut self) -> Option<u8> {
@@ -68,7 +73,6 @@ impl Mem for Bus<'_> {
                 self.cpu_vram[mirror_down_addr as usize]
             }
             0x2000 | 0x2001 | 0x2003 | 0x2005 | 0x2006 | 0x4014 => {
-                // panic!("Attempt to read from write-only PPU address {:x}", addr);
                 0
             }
             0x2002 => self.ppu.read_status(),
@@ -76,7 +80,6 @@ impl Mem for Bus<'_> {
             0x2007 => self.ppu.read_data(),
 
             0x4000..=0x4015 => {
-                //ignore APU 
                 0
             }
 
@@ -173,7 +176,7 @@ mod test {
 
     #[test]
     fn test_mem_read_write_to_ram() {
-        let mut bus = Bus::new(test::test_rom(), |ppu: &NesPPU, &mut Joypad| {});
+        let bus = Bus::new(test::test_rom(), move |ppu: &NesPPU, joypad: &mut joypad::Joypad| {});
         bus.mem_write(0x01, 0x55);
         assert_eq!(bus.mem_read(0x01), 0x55);
     }
